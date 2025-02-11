@@ -1,90 +1,116 @@
 {% extends 'plantilla.html' %}
 
-{% block title %}Actualizar Material{% endblock %}
+{% block title %}Actualizar Proyecto de Reforma{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="text-center">Actualizar Material</h1>
-    <form method="POST" class="mt-4" id="frm_editar_material">
+    <h1 class="text-center">Actualizar Proyecto de Reforma</h1>
+    <form method="POST" class="mt-4" id="frm_editar_proyecto" enctype="multipart/form-data">
         {% csrf_token %}
         
         <!-- Proyecto de Reforma asociado al material -->
         <div class="mb-3">
-            <label for="id_proyecto" class="form-label">Proyecto de Reforma:</label>
-            <select id="id_proyecto" name="id_proyecto" class="form-control" required>
-                {% for proyecto in proyectos %}
-                    <option value="{{ proyecto.id_proyecto }}" {% if proyecto.id_proyecto == material.id_proyecto.id_proyecto %}selected{% endif %}>
-                        {{ proyecto.id_proyecto }} - {{ proyecto.descripcion }} - {{ proyecto.id_vivienda.direccion }} 
-                        - {{ proyecto.fecha_inicio|date:"d" }} de {{ proyecto.fecha_inicio|date:"F" }} de {{ proyecto.fecha_inicio|date:"Y" }} 
-                        - {{ proyecto.fecha_fin|date:"d" }} de {{ proyecto.fecha_fin|date:"F" }} de {{ proyecto.fecha_fin|date:"Y" }}
+            <label for="id_vivienda" class="form-label">Vivienda:</label>
+            <select id="id_vivienda" name="id_vivienda" class="form-control" required>
+                {% for vivienda in viviendas %}
+                    <option value="{{ vivienda.id_vivienda }}" {% if vivienda.id_vivienda == proyecto.id_vivienda.id_vivienda %}selected{% endif %}>
+                        {{ vivienda.direccion }} - {{ vivienda.tipo }}
                     </option>
                 {% endfor %}
             </select>
         </div>
 
-        <!-- Nombre del Material -->
         <div class="mb-3">
-            <label for="nombre_material" class="form-label">Nombre del Material:</label>
-            <input type="text" id="nombre_material" name="nombre_material" class="form-control" value="{{ material.nombre_material }}" required>
+            <label for="descripcion" class="form-label">Descripción:</label>
+            <textarea id="descripcion" name="descripcion" class="form-control" rows="4" required>{{ proyecto.descripcion }}</textarea>
         </div>
 
-        <!-- Cantidad del Material (ahora solo acepta enteros) -->
         <div class="mb-3">
-            <label for="cantidad" class="form-label">Cantidad:</label>
-            <input type="number" 
-                id="cantidad" 
-                name="cantidad" 
-                class="form-control" 
-                value="{{ material.cantidad }}"  
-                step="1"  
-            >
+            <label for="fecha_inicio" class="form-label">Fecha de Inicio:</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control" value="{{ proyecto.fecha_inicio|date:'Y-m-d' }}" required>
         </div>
 
-        <button type="submit" class="btn btn-primary">Guardar</button>
-        <a href="{% url 'lista_materiales' %}" class="btn btn-secondary">Volver</a>
+        <div class="mb-3">
+            <label for="fecha_fin" class="form-label">Fecha de Fin:</label>
+            <input type="date" id="fecha_fin" name="fecha_fin" class="form-control" value="{{ proyecto.fecha_fin|date:'Y-m-d' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="estado" class="form-label">Estado:</label>
+            <select id="estado" name="estado" class="form-control" required>
+                <option value="Pendiente" {% if proyecto.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="En progreso" {% if proyecto.estado == 'En progreso' %}selected{% endif %}>En progreso</option>
+                <option value="Finalizado" {% if proyecto.estado == 'Finalizado' %}selected{% endif %}>Finalizado</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Actualizar</button>
+        <a href="{% url 'lista_proyectos' %}" class="btn btn-secondary">Volver</a>
     </form>
 </div>
 
 <script>
     $(document).ready(function() {
-        // Mostrar el valor de cantidad en consola para depurar
-        console.log("Valor de cantidad: ", "{{ material.cantidad }}");
-
         console.log("✅ jQuery y jQuery Validate cargados correctamente.");
 
-        // ✅ Validación del formulario
-        $("#frm_editar_material").validate({
+        // Validación del formulario
+        $("#frm_editar_proyecto").validate({
             rules: {
-                "id_proyecto": {
+                "id_vivienda": {
                     required: true
                 },
-                "nombre_material": {
+                "descripcion": {
                     required: true,
-                    minlength: 3
+                    minlength: 10
                 },
-                "cantidad": {
+                "fecha_inicio": {
                     required: true,
-                    number: true,
-                    min: 0
+                    date: true,
+                    minDate: function() {
+                        return new Date().toISOString().split("T")[0];  // La fecha mínima es la fecha actual
+                    }
+                },
+                "fecha_fin": {
+                    required: true,
+                    date: true,
+                    minDate: function() {
+                        return new Date().toISOString().split("T")[0];  // La fecha mínima es la fecha actual
+                    }
+                },
+                "estado": {
+                    required: true
                 }
             },
             messages: {
-                "id_proyecto": {
-                    required: "⚠️ El proyecto de reforma es obligatorio."
+                "id_vivienda": {
+                    required: "⚠️ La vivienda es obligatoria."
                 },
-                "nombre_material": {
-                    required: "⚠️ El nombre del material es obligatorio.",
-                    minlength: "⚠️ El nombre del material debe tener al menos 3 caracteres."
+                "descripcion": {
+                    required: "⚠️ La descripción es obligatoria.",
+                    minlength: "⚠️ La descripción debe tener al menos 10 caracteres."
                 },
-                "cantidad": {
-                    required: "⚠️ La cantidad es obligatoria.",
-                    number: "⚠️ La cantidad debe ser un número entero.",
-                    min: "⚠️ La cantidad debe ser mayor o igual a 0."
+                "fecha_inicio": {
+                    required: "⚠️ La fecha de inicio es obligatoria.",
+                    minDate: "⚠️ La fecha de inicio no puede ser anterior a la fecha actual."
+                },
+                "fecha_fin": {
+                    required: "⚠️ La fecha de fin es obligatoria.",
+                    minDate: "⚠️ La fecha de fin no puede ser anterior a la fecha actual."
+                },
+                "estado": {
+                    required: "⚠️ El estado es obligatorio."
                 }
             },
             errorPlacement: function(error, element) {
                 error.insertAfter(element);
             }
+        });
+
+        // Validación personalizada para las fechas
+        $.validator.addMethod("minDate", function(value, element, params) {
+            let date = new Date(value);
+            let minDate = new Date(params);
+            return date >= minDate;
         });
     });
 </script>
@@ -97,7 +123,7 @@
         margin-top: 5px;     
     }
 
-    input.error, select.error {
+    input.error, select.error, textarea.error {
         border: 2px solid red; 
     }
 </style>

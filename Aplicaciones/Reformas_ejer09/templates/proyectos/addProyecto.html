@@ -51,6 +51,14 @@
     $(document).ready(function() {
         console.log("✅ jQuery y jQuery Validate cargados correctamente.");
 
+        // Obtener la fecha actual y la fecha máxima de fin (10 años a partir de la fecha actual)
+        let currentDate = new Date();
+        let maxDate = new Date();
+        maxDate.setFullYear(currentDate.getFullYear() + 10);  // 10 años desde la fecha actual
+
+        // Convertir la fecha máxima a formato YYYY-MM-DD
+        let maxDateStr = maxDate.toISOString().split("T")[0];
+
         // ✅ Validación del formulario
         $("#frm_crear_proyecto").validate({
             rules: {
@@ -73,7 +81,8 @@
                     date: true,
                     minDate: function() {
                         return new Date().toISOString().split("T")[0];  // La fecha mínima es la fecha actual
-                    }
+                    },
+                    maxDate: maxDateStr  // La fecha máxima es 10 años después de la fecha actual
                 },
                 "estado": {
                     required: true
@@ -93,7 +102,8 @@
                 },
                 "fecha_fin": {
                     required: "⚠️ La fecha de fin es obligatoria.",
-                    minDate: "⚠️ La fecha de fin no puede ser anterior a la fecha actual."
+                    minDate: "⚠️ La fecha de fin no puede ser anterior a la fecha actual.",
+                    maxDate: "⚠️ La fecha de fin no puede ser posterior a 10 años desde la fecha actual."
                 },
                 "estado": {
                     required: "⚠️ El estado es obligatorio."
@@ -109,6 +119,13 @@
             let date = new Date(value);
             let minDate = new Date(params);
             return date >= minDate;
+        });
+
+        // Validación personalizada para la fecha máxima
+        $.validator.addMethod("maxDate", function(value, element, params) {
+            let date = new Date(value);
+            let maxDate = new Date(params);
+            return date <= maxDate;
         });
     });
 </script>
