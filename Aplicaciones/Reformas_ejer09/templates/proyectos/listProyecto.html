@@ -1,0 +1,155 @@
+{% extends 'plantilla.html' %}
+
+{% block title %}Lista de Proyectos{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">Lista de Proyectos de Reforma</h2>
+    <a href="{% url 'crear_proyecto' %}" class="btn btn-success mb-3">Crear Nuevo Proyecto</a>
+
+    <table class="table table-bordered table-striped table-hover" id="tbl_proyectos">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Vivienda</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Fin</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for proyecto in proyectos %}
+            <tr id="fila-{{ proyecto.id_proyecto }}">
+                <td>{{ proyecto.id_proyecto }}</td>
+                <td>{{ proyecto.descripcion }}</td>
+                <td>{{ proyecto.estado }}</td>
+                <td>{{ proyecto.id_vivienda.direccion }} - {{ proyecto.id_vivienda.tipo }}</td>
+                <td>{{ proyecto.fecha_inicio }}</td>
+                <td>{{ proyecto.fecha_fin }}</td>
+                <td>
+                    <a href="{% url 'editar_proyecto' proyecto.id_proyecto %}" class="btn btn-warning btn-sm">Editar</a>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmarEliminacion({{ proyecto.id_proyecto }})">
+                        Eliminar
+                    </button>
+                    <form id="form-eliminar-{{ proyecto.id_proyecto }}" method="POST" action="{% url 'eliminar_proyecto' proyecto.id_proyecto %}" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">No hay proyectos registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Verificar si DataTable está inicializada y destruir si es necesario
+        if ($.fn.dataTable.isDataTable('#tbl_proyectos')) {
+            $('#tbl_proyectos').DataTable().clear().destroy();
+        }
+
+        // Inicialización de DataTable con los botones de exportación
+        $('#tbl_proyectos').DataTable({
+            dom: '<"d-flex justify-content-between align-items-center mb-3"<"dt-buttons"B><"dataTables_filter"f>>' +
+                 '<"row"<"col-lg-12"tr>>' +
+                 '<"d-flex justify-content-between align-items-center"<"dataTables_info"i><"dataTables_paginate"p>>',
+            buttons: [
+                {
+                    extend: 'copyHtml5',
+                    text: '<i class="bi bi-clipboard"></i> Copiar',
+                    className: 'btn btn-secondary btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(7))' }  // Excluir columna Acciones (col 7)
+                },
+                {
+                    extend: 'excelHtml5',
+                    text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(7))' }  // Excluir columna Acciones (col 7)
+                },
+                {
+                    extend: 'csvHtml5',
+                    text: '<i class="bi bi-file-earmark-spreadsheet"></i> CSV',
+                    className: 'btn btn-info btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(7))' }  // Excluir columna Acciones (col 7)
+                },
+                {
+                    extend: 'pdfHtml5',
+                    text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                    className: 'btn btn-danger btn-sm',
+                    pageSize: 'A4',
+                    exportOptions: { columns: ':not(:nth-child(7))' },  // Excluir columna Acciones (col 7)
+                    customize: function (doc) {
+                        // Ajustar el ancho de las columnas (solo las columnas restantes)
+                        doc.content[1].table.widths = ['5%', '20%', '20%', '20%', '20%', '15%'];
+                        doc.styles.tableHeader.alignment = 'center';
+                        doc.styles.tableBodyEven.alignment = 'center';
+                        doc.styles.tableBodyOdd.alignment = 'center';
+                        doc.defaultStyle.fontSize = 12;
+                        doc.pageMargins = [40, 40, 40, 40];
+                    }
+                },
+                {
+                    extend: 'print',
+                    text: '<i class="bi bi-printer"></i> Imprimir',
+                    className: 'btn btn-primary btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(7))' }  // Excluir columna Acciones (col 7)
+                }
+            ],
+            language: {
+                url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+            }
+        });
+    });
+
+    // Función para mostrar la alerta de confirmación con iziToast
+    function confirmarEliminacion(id_proyecto) {
+        iziToast.question({
+            timeout: 3000,
+            close: false,
+            overlay: true,
+            displayMode: 'once',
+            title: '¿Estás seguro?',
+            message: 'Esta acción eliminará el proyecto permanentemente.',
+            position: 'center',
+            buttons: [
+                ['<button><b>Sí, eliminar</b></button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                    
+                    // Enviar el formulario mediante AJAX para eliminar el proyecto sin recargar la página
+                    $.ajax({
+                        url: document.getElementById('form-eliminar-' + id_proyecto).action,
+                        type: 'POST',
+                        data: $('#form-eliminar-' + id_proyecto).serialize(),
+                        success: function(response) {
+                            $('#fila-' + id_proyecto).fadeOut(500, function() { $(this).remove(); });
+
+                            iziToast.success({
+                                title: 'Éxito',
+                                message: 'Proyecto eliminado correctamente.',
+                                position: 'topRight'
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            iziToast.error({
+                                title: 'Error',
+                                message: 'No se pudo eliminar el proyecto.',
+                                position: 'topRight'
+                            });
+                        }
+                    });
+                }, true],
+                ['<button>Cancelar</button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                }]
+            ]
+        });
+    }
+</script>
+
+{% endblock %}

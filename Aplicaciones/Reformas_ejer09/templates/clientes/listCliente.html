@@ -1,0 +1,165 @@
+{% extends 'plantilla.html' %}
+
+{% block title %}Lista de Clientes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">Lista de Clientes</h2>
+    <a href="{% url 'crear_cliente' %}" class="btn btn-success mb-3">Crear Nuevo Cliente</a>
+
+    <table class="table table-bordered table-striped table-hover" id="tbl_clientes">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Foto</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cliente in clientes %}
+            <tr id="fila-{{ cliente.id_cliente }}">
+                <td>{{ cliente.id_cliente }}</td>
+                <td>
+                    {% if cliente.foto %}
+                        <a href="{{ cliente.foto.url }}" target="_blank">
+                            <img src="{{ cliente.foto.url }}" alt="Foto de {{ cliente.nombre }}" class="img-thumbnail" width="150">
+                        </a>
+                        <br><br>
+                        <a href="{{ cliente.foto.url }}" class="btn btn-info btn-sm" download>Descargar Foto</a>
+                    {% else %}
+                        <p>No disponible</p>
+                    {% endif %}
+                </td>
+                <td>{{ cliente.nombre }}</td>
+                <td>{{ cliente.apellido }}</td>
+                <td>{{ cliente.correo }}</td>
+                <td>{{ cliente.telefono }}</td>
+                <td>
+                    <a href="{% url 'editar_cliente' cliente.id_cliente %}" class="btn btn-warning btn-sm">Editar</a>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmarEliminacion({{ cliente.id_cliente }})">
+                        Eliminar
+                    </button>
+                    <form id="form-eliminar-{{ cliente.id_cliente }}" method="POST" action="{% url 'eliminar_cliente' cliente.id_cliente %}" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">No hay clientes registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Verificar si DataTable está inicializada y destruir si es necesario
+        if ($.fn.dataTable.isDataTable('#tbl_clientes')) {
+            $('#tbl_clientes').DataTable().clear().destroy();
+        }
+
+        // Inicialización de DataTable con los botones de exportación
+        $('#tbl_clientes').DataTable({
+            dom: '<"d-flex justify-content-between align-items-center mb-3"<"dt-buttons"B><"dataTables_filter"f>>' +
+                 '<"row"<"col-lg-12"tr>>' +
+                 '<"d-flex justify-content-between align-items-center"<"dataTables_info"i><"dataTables_paginate"p>>',
+            buttons: [
+                {
+                    extend: 'copyHtml5',
+                    text: '<i class="bi bi-clipboard"></i> Copiar',
+                    className: 'btn btn-secondary btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(2)):not(:nth-child(7))' }  // Excluir columna Foto (col 2) y Acciones (col 7)
+                },
+                {
+                    extend: 'excelHtml5',
+                    text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                    className: 'btn btn-success btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(2)):not(:nth-child(7))' }  // Excluir columna Foto (col 2) y Acciones (col 7)
+                },
+                {
+                    extend: 'csvHtml5',
+                    text: '<i class="bi bi-file-earmark-spreadsheet"></i> CSV',
+                    className: 'btn btn-info btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(2)):not(:nth-child(7))' }  // Excluir columna Foto (col 2) y Acciones (col 7)
+                },
+                {
+                    extend: 'pdfHtml5',
+                    text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                    className: 'btn btn-danger btn-sm',
+                    pageSize: 'A4',
+                    exportOptions: { columns: ':not(:nth-child(2)):not(:nth-child(7))' },  // Excluir columna Foto (col 2) y Acciones (col 7)
+                    customize: function (doc) {
+                        // Ajustar el ancho de las columnas (solo las columnas restantes)
+                        doc.content[1].table.widths = ['5%', '20%', '25%', '20%', '20%'];
+                        doc.styles.tableHeader.alignment = 'center';
+                        doc.styles.tableBodyEven.alignment = 'center';
+                        doc.styles.tableBodyOdd.alignment = 'center';
+                        doc.defaultStyle.fontSize = 12;
+                        doc.pageMargins = [40, 40, 40, 40];
+                    }
+                },
+                {
+                    extend: 'print',
+                    text: '<i class="bi bi-printer"></i> Imprimir',
+                    className: 'btn btn-primary btn-sm',
+                    exportOptions: { columns: ':not(:nth-child(2)):not(:nth-child(7))' }  // Excluir columna Foto (col 2) y Acciones (col 7)
+                }
+            ],
+            language: {
+                url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+            }
+        });
+    });
+
+    // Función para mostrar la alerta de confirmación con iziToast
+    function confirmarEliminacion(id_cliente) {
+        iziToast.question({
+            timeout: 3000,
+            close: false,
+            overlay: true,
+            displayMode: 'once',
+            title: '¿Estás seguro?',
+            message: 'Esta acción eliminará al cliente permanentemente.',
+            position: 'center',
+            buttons: [
+                ['<button><b>Sí, eliminar</b></button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                    
+                    // Enviar el formulario mediante AJAX para eliminar el cliente sin recargar la página
+                    $.ajax({
+                        url: document.getElementById('form-eliminar-' + id_cliente).action,
+                        type: 'POST',
+                        data: $('#form-eliminar-' + id_cliente).serialize(),
+                        success: function(response) {
+                            $('#fila-' + id_cliente).fadeOut(500, function() { $(this).remove(); });
+
+                            iziToast.success({
+                                title: 'Éxito',
+                                message: 'Cliente eliminado correctamente.',
+                                position: 'topRight'
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            iziToast.error({
+                                title: 'Error',
+                                message: 'No se pudo eliminar el cliente.',
+                                position: 'topRight'
+                            });
+                        }
+                    });
+                }, true],
+                ['<button>Cancelar</button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                }]
+            ]
+        });
+    }
+</script>
+
+{% endblock %}

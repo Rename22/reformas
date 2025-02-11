@@ -1,0 +1,147 @@
+{% extends 'plantilla.html' %}
+
+{% block title %}Actualizar Vivienda{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Actualizar Vivienda</h1>
+    <form method="POST" class="mt-4" id="frm_editar_vivienda" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="direccion" class="form-label">Dirección:</label>
+            <input type="text" id="direccion" name="direccion" class="form-control" value="{{ vivienda.direccion }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="tipo" class="form-label">Tipo:</label>
+            <input type="text" id="tipo" name="tipo" class="form-control" value="{{ vivienda.tipo }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="id_cliente" class="form-label">Cliente:</label>
+            <select id="id_cliente" name="id_cliente" class="form-control">
+                {% for cliente in clientes %}
+                    <option value="{{ cliente.id_cliente }}" {% if cliente.id_cliente == vivienda.id_cliente.id_cliente %}selected{% endif %}>
+                        {{ cliente.nombre }} {{ cliente.apellido }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Mostrar la foto actual si existe -->
+        <div class="mb-3">
+            <label for="foto" class="form-label">Imagen actual:</label>
+            <div>
+                {% if vivienda.foto %}
+                    <img src="{{ vivienda.foto.url }}" alt="Foto actual" class="img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">
+                    <br>
+                    <span>Cambiar Foto:</span>
+                {% else %}
+                    <span>No hay imagen cargada.</span>
+                {% endif %}
+            </div>
+            <input type="file" id="foto" name="foto" class="form-control file-input" accept="image/png, image/jpeg, image/jpg">
+            <div id="foto-error-container"></div> <!-- Contenedor para el mensaje de error -->
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="{% url 'lista_viviendas' %}" class="btn btn-secondary">Volver</a>
+    </form>
+</div>
+
+<script>
+    $(document).ready(function() {
+        console.log("✅ jQuery y jQuery Validate cargados correctamente.");
+
+        // ✅ Inicializar FileInput para la imagen
+        $("#foto").fileinput({
+            allowedFileExtensions: ["jpg", "jpeg", "png"],
+            showUpload: false,
+            maxFileSize: 2048,
+            language: 'es', // Cambiar el idioma a español
+            browseLabel: 'Seleccionar', // Texto para el botón de seleccionar archivo
+            removeLabel: 'Eliminar', // Texto para el botón de eliminar archivo
+            cancelLabel: 'Cancelar', // Texto para el botón de cancelar
+            uploadLabel: 'Subir', // Texto para el botón de subir
+            msgPlaceholder: 'Seleccionar archivo...', // Texto de placeholder
+            msgSizeTooLarge: 'El archivo "{name}" (<b>{size} KB</b>) excede el tamaño máximo permitido de <b>{maxSize} KB</b>.', // Mensaje de error cuando el archivo es demasiado grande
+            msgFilesTooMany: 'El número de archivos seleccionados <b>({n})</b> excede el máximo permitido de <b>{m}</b>.', // Mensaje de error cuando se seleccionan demasiados archivos
+            msgInvalidFileExtension: 'Extensión no válida para el archivo "{name}". Solo se permiten archivos "{extensions}".', // Mensaje de error cuando la extensión del archivo no es válida
+            msgValidationError: 'Error de validación', // Mensaje de error general de validación
+            dropZoneEnabled: true, // Habilitar la zona de arrastrar y soltar
+            dropZoneTitle: 'Arrastra y suelta archivos aquí...', // Personalizar el texto de la zona de arrastrar y soltar
+        });
+
+        // ✅ Método de validación personalizada para imágenes
+        $.validator.addMethod("imagenValida", function(value, element) {
+            let file = element.files[0];
+            if (!file) {
+                return true; // Permitir que no se suba una nueva imagen
+            }
+            let fileType = file.type;
+            return (fileType === "image/jpeg" || fileType === "image/jpg" || fileType === "image/png");
+        }, "⚠️ Solo se permiten imágenes en formato JPG, JPEG o PNG.");
+
+        // ✅ Validación del formulario
+        $("#frm_editar_vivienda").validate({
+            rules: {
+                "direccion": {
+                    required: true,
+                    minlength: 3
+                },
+                "tipo": {
+                    required: true,
+                    minlength: 3
+                },
+                "id_cliente": {
+                    required: true
+                },
+                "foto": {
+                    imagenValida: true
+                }
+            },
+            messages: {
+                "direccion": {
+                    required: "⚠️ La dirección es obligatoria.",
+                    minlength: "⚠️ La dirección debe tener al menos 3 caracteres."
+                },
+                "tipo": {
+                    required: "⚠️ El tipo es obligatorio.",
+                    minlength: "⚠️ El tipo debe tener al menos 3 caracteres."
+                },
+                "id_cliente": {
+                    required: "⚠️ El cliente es obligatorio."
+                },
+                "foto": {
+                    imagenValida: "⚠️ Solo se permiten imágenes en formato JPG, JPEG o PNG."
+                }
+            },
+            errorPlacement: function(error, element) {
+                if (element.attr("name") === "foto") {
+                    error.appendTo("#foto-error-container").css({
+                        "display": "block",
+                        "color": "red",
+                        "font-weight": "bold",
+                        "margin-top": "5px"
+                    });
+                } else {
+                    error.insertAfter(element);
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    label.error {
+        color: red;          
+        font-size: 14px;      
+        font-weight: bold;    
+        margin-top: 5px;     
+    }
+
+    input.error {
+        border: 2px solid red; 
+    }
+</style>
+
+{% endblock %}

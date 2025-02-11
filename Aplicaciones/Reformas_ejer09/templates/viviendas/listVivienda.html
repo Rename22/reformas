@@ -1,0 +1,164 @@
+{% extends 'plantilla.html' %}
+
+{% block title %}Lista de Viviendas{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">Lista de Viviendas</h2>
+    <a href="{% url 'crear_vivienda' %}" class="btn btn-success mb-3">Crear Nueva Vivienda</a>
+
+    <table class="table table-bordered table-striped table-hover" id="tbl_viviendas">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Foto</th>  <!-- Nueva columna de Foto -->
+                <th>Dirección</th>
+                <th>Tipo</th>
+                <th>Cliente</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vivienda in viviendas %}
+            <tr id="fila-{{ vivienda.id_vivienda }}">
+                <td>{{ vivienda.id_vivienda }}</td>
+                
+                <!-- Mostrar la foto de la vivienda -->
+                <td>
+                    {% if vivienda.foto %}
+                        <a href="{{ vivienda.foto.url }}" target="_blank">
+                            <img src="{{ vivienda.foto.url }}" alt="Foto de {{ vivienda.direccion }}" class="img-thumbnail" width="150">
+                        </a>
+                        <br><br>
+                        <a href="{{ vivienda.foto.url }}" class="btn btn-info btn-sm" download>Descargar Foto</a>
+                    {% else %}
+                        <p>No disponible</p>
+                    {% endif %}
+                </td>
+
+                <td>{{ vivienda.direccion }}</td>
+                <td>{{ vivienda.tipo }}</td>
+                <td>{{ vivienda.id_cliente.nombre }} {{ vivienda.id_cliente.apellido }}</td>
+                <td>
+                    <a href="{% url 'editar_vivienda' vivienda.id_vivienda %}" class="btn btn-warning btn-sm">Editar</a>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmarEliminacion({{ vivienda.id_vivienda }})">
+                        Eliminar
+                    </button>
+                    <form id="form-eliminar-{{ vivienda.id_vivienda }}" method="POST" action="{% url 'eliminar_vivienda' vivienda.id_vivienda %}" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center">No hay viviendas registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Verificar si hay datos en la tabla
+        if ($('#tbl_viviendas tbody tr').length > 0) {
+            // Si hay datos, inicializar DataTables
+            $('#tbl_viviendas').DataTable({
+                dom: '<"d-flex justify-content-between align-items-center mb-3"<"dt-buttons"B><"dataTables_filter"f>>' +
+                     '<"row"<"col-lg-12"tr>>' +
+                     '<"d-flex justify-content-between align-items-center"<"dataTables_info"i><"dataTables_paginate"p>>',
+                buttons: [
+                    {
+                        extend: 'copyHtml5',
+                        text: '<i class="bi bi-clipboard"></i> Copiar',
+                        className: 'btn btn-secondary btn-sm',
+                        exportOptions: { columns: ':not(:nth-child(6))' }  // Excluir columna Acciones (col 6)
+                    },
+                    {
+                        extend: 'excelHtml5',
+                        text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                        className: 'btn btn-success btn-sm',
+                        exportOptions: { columns: ':not(:nth-child(6))' }  // Excluir columna Acciones (col 6)
+                    },
+                    {
+                        extend: 'csvHtml5',
+                        text: '<i class="bi bi-file-earmark-spreadsheet"></i> CSV',
+                        className: 'btn btn-info btn-sm',
+                        exportOptions: { columns: ':not(:nth-child(6))' }  // Excluir columna Acciones (col 6)
+                    },
+                    {
+                        extend: 'pdfHtml5',
+                        text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                        className: 'btn btn-danger btn-sm',
+                        pageSize: 'A4',
+                        exportOptions: { columns: ':not(:nth-child(6))' },  // Excluir columna Acciones (col 6)
+                        customize: function (doc) {
+                            // Ajustar el ancho de las columnas (solo las columnas restantes)
+                            doc.content[1].table.widths = ['5%', '20%', '25%', '25%', '25%'];
+                            doc.styles.tableHeader.alignment = 'center';
+                            doc.styles.tableBodyEven.alignment = 'center';
+                            doc.styles.tableBodyOdd.alignment = 'center';
+                            doc.defaultStyle.fontSize = 12;
+                            doc.pageMargins = [40, 40, 40, 40];
+                        }
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="bi bi-printer"></i> Imprimir',
+                        className: 'btn btn-primary btn-sm',
+                        exportOptions: { columns: ':not(:nth-child(6))' }  // Excluir columna Acciones (col 6)
+                    }
+                ],
+                language: {
+                    url: "https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                }
+            });
+        }
+    });
+
+    // Función para mostrar la alerta de confirmación con iziToast
+    function confirmarEliminacion(id_vivienda) {
+        iziToast.question({
+            timeout: 3000,
+            close: false,
+            overlay: true,
+            displayMode: 'once',
+            title: '¿Estás seguro?',
+            message: 'Esta acción eliminará la vivienda permanentemente.',
+            position: 'center',
+            buttons: [
+                ['<button><b>Sí, eliminar</b></button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                    
+                    // Enviar el formulario mediante AJAX para eliminar la vivienda sin recargar la página
+                    $.ajax({
+                        url: document.getElementById('form-eliminar-' + id_vivienda).action,
+                        type: 'POST',
+                        data: $('#form-eliminar-' + id_vivienda).serialize(),
+                        success: function(response) {
+                            $('#fila-' + id_vivienda).fadeOut(500, function() { $(this).remove(); });
+
+                            iziToast.success({
+                                title: 'Éxito',
+                                message: 'Vivienda eliminada correctamente.',
+                                position: 'topRight'
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            iziToast.error({
+                                title: 'Error',
+                                message: 'No se pudo eliminar la vivienda.',
+                                position: 'topRight'
+                            });
+                        }
+                    });
+                }, true],
+                ['<button>Cancelar</button>', function (instance, toast) {
+                    instance.hide({ transitionOut: 'fadeOut' }, toast, 'button');
+                }]
+            ]
+        });
+    }
+</script>
+
+{% endblock %}
